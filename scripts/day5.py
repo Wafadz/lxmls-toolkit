@@ -33,9 +33,6 @@ For a more matlab-like environment you can use Spider or ipython. If you port
  this to ipython notebook let me know! (ramon@astudillo.com)
 """
 
-import sys
-
-sys.path.append('.')
 import time
 
 from ipdb import set_trace
@@ -90,9 +87,13 @@ z1 = np.dot(W1, x) + b1  # Linear transformation
 tilde_z1 = 1 / (1+np.exp(-z1))  # Non-linear transformation
 #
 
-# Theano code.
-# NOTE: We use underscore to denote symbolic equivalents to Numpy variables.
-# This is no Python convention!.
+# Pytorch code.
+import torch
+from torch.autograd import Variable
+dtype = torch.FloatTensor
+_x = Variable(torch.randn(bsize, geometry[0]).type(dtype), requires_grad=False)
+torch.dot()
+
 import theano
 import theano.tensor as T
 _x = T.matrix('x')
@@ -264,7 +265,7 @@ updates = [(par, par - lrate*T.grad(_F, par)) for par in mlp_c.params]
 # Define the batch update function. This will return the cost of each batch
 # and update the MLP parameters at the same time using updates
 batch_up = theano.function([_x, _y], _F, updates=updates)
-n_batch = int(np.ceil(float(train_x.shape[1])/bsize)) 
+n_batch = int(np.ceil(float(train_x.shape[1])/bsize))
 #
 
 init_t = time.clock()

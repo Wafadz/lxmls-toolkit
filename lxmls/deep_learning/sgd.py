@@ -2,13 +2,13 @@ from __future__ import division
 import sys
 import numpy as np
 import time
-import theano
-import theano.tensor as T
+#import theano
+#import theano.tensor as T
 
 
 def get_numpy_batch_update(model, lrate, theano=False):
     '''
-    returns a batch update function with the update rule written in numpy 
+    returns a batch update function with the update rule written in numpy
     (slow)
     '''
 
@@ -28,14 +28,14 @@ def get_numpy_batch_update(model, lrate, theano=False):
             # Update each parameter with SGD rule
             for m in np.arange(len(model.params)):
                 # Parameters as theano shared variables
-                model.params[m].set_value(model.params[m].get_value() 
+                model.params[m].set_value(model.params[m].get_value()
                                           - lrate*np.array(nabla_params[m]))
 
     else:
 
         def batch_up(batch_x, batch_y):
             '''
-            Update for numpy arrays 
+            Update for numpy arrays
             '''
             # Get gradients for each layer and this batch
             # Get gradients for each layer and this batch
@@ -87,9 +87,9 @@ def SGD_train(model, n_iter, bsize=None, lrate=None, train_set=None,
     if not batch_up:
         if getattr(model, "_forward", None):
             batch_up = get_numpy_batch_update(model, lrate, theano=True)
-        else:    
+        else:
             batch_up = get_numpy_batch_update(model, lrate, theano=False)
-        
+
     # Number of mini batches
     n_batch = int(np.ceil(float(train_x.shape[1])/bsize))
 
