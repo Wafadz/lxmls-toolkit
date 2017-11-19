@@ -42,13 +42,15 @@ class NumpyMLP(MLP):
 
         # This will store activations at each layer and the input. This is
         # needed to compute backpropagation
-        if all_inputs:
-            activations = []
 
         # Input
         tilde_z = x
+        layer_inputs = []
 
         for n in range(self.n_layers):
+
+            # Store input to this layer (needed for backpropagation)
+            layer_inputs.append(tilde_z)
 
             # Get weigths and bias of the layer (even and odd positions)
             W = self.params[2*n]
@@ -65,14 +67,10 @@ class NumpyMLP(MLP):
                 # Softmax is computed in log-domain to prevent
                 # underflow/overflow
                 tilde_z = np.exp(z - logsumexp(z, axis=1)[:, None])
-
-            if all_inputs:
-                activations.append(tilde_z)
-
         if all_inputs:
-            tilde_z = activations
-
-        return tilde_z
+            return tilde_z, layer_inputs
+        else:
+            return tilde_z
 
     def grads(self, x, y):
         """
@@ -81,7 +79,7 @@ class NumpyMLP(MLP):
        """
 
         # Run forward and store activations for each layer
-        layer_inputs = self.forward(x, all_inputs=True)
+        prob_y, layer_inputs = self.forward(x, all_inputs=True)
 
         # For each layer in reverse store the gradients for each parameter
         nabla_params = [None] * (2*self.n_layers)
@@ -102,10 +100,10 @@ class NumpyMLP(MLP):
             if n == self.n_layers-1:
                 # NOTE: This assumes cross entropy cost
                 if self.actvfunc[n] == 'sigmoid':
-                    e = (layer_inputs[n] - y) / y.shape[0]
+                    e = (prob_y - y) / y.shape[0]
                 elif self.actvfunc[n] == 'softmax':
                     I = index2onehot(y, W.shape[0])
-                    e = (layer_inputs[n] - I) / y.shape[0]
+                    e = (prob_y - I) / y.shape[0]
 
             else:
 
@@ -113,17 +111,12 @@ class NumpyMLP(MLP):
                 e = np.dot(e, W_next)
 
                 # Backpropagate through sigmoid layer
-                # This is correct but confusing n+1 is n in the guide
-                e *= layer_inputs[n] * (1-layer_inputs[n])
+                e *= layer_inputs[n+1] * (1-layer_inputs[n+1])
 
             # Weight gradient
             nabla_W = np.zeros(W.shape)
             for l in np.arange(e.shape[0]):
-                if n == 0:
-                    # For the first layer, the activation is the input
-                    nabla_W += np.outer(e[l, :], x[l, :])
-                else:
-                    nabla_W += np.outer(e[l, :], layer_inputs[n-1][l, :])
+                nabla_W += np.outer(e[l, :], layer_inputs[n][l, :])
             # Bias gradient
             nabla_b = np.sum(e, axis=0, keepdims=True)
 
