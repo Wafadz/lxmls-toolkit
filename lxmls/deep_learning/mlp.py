@@ -10,9 +10,9 @@ def index2onehot(index, N):
     Output:     [[0, 1, 0, 0], [0, 0, 1, 0], [1, 0, 0, 0]]
     """
     L = index.shape[0]
-    onehot = np.zeros((N, L))
+    onehot = np.zeros((L, N))
     for l in np.arange(L):
-        onehot[index[l], l] = 1
+        onehot[l, index[l]] = 1
     return onehot
 
 
@@ -86,7 +86,7 @@ class MLP():
             )
 
             # Bias
-            bias = np.zeros((geometry[n+1], 1))
+            bias = np.zeros((1, geometry[n+1]))
 
             # Append parameters
             parameters.append(weight)

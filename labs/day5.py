@@ -45,11 +45,9 @@ print "######################"
 import numpy as np
 import lxmls.readers.sentiment_reader as srs
 scr = srs.SentimentCorpus("books")
-train_x = scr.train_X.T
-train_y = scr.train_y[:, 0]
-test_x = scr.test_X.T
-test_y = scr.test_y[:, 0]
-input_size = train_x.shape[0]
+train_x, train_y = scr.train_X, scr.train_y[:, 0]
+test_x, test_y = scr.test_X, scr.test_y[:, 0]
+input_size = train_x.shape[1]
 
 #
 # Neural network modules

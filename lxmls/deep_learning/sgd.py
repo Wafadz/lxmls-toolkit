@@ -48,16 +48,16 @@ def get_numpy_batch_update(model, lrate, theano=False):
     return batch_up
 
 
-def class_acc(hat_y, y_ref):
+def class_acc(p_y, y_ref):
     """
     Computes percent accuracy and log probability given estimated and reference
     class indices
     """
     # Check probability of devel set
-    pred = hat_y[y_ref, np.arange(y_ref.shape[0])]
+    pred = p_y[np.arange(y_ref.shape[0]), y_ref]
     p_dev = np.sum(np.log(pred))
     # Check percent correct classification on the devel set
-    cr = np.sum((np.argmax(hat_y, 0) == y_ref).astype(int)) / y_ref.shape[0]
+    cr = np.sum((np.argmax(p_y, 1) == y_ref).astype(int)) / y_ref.shape[0]
     return cr, p_dev
 
 
@@ -103,7 +103,7 @@ def SGD_train(model, n_iter, bsize=None, lrate=None, train_set=None,
         init_time = time.clock()
         for j in np.arange(n_batch):
             # Mini batch
-            batch_x = train_x[:, j*bsize:(j+1)*bsize]
+            batch_x = train_x[j*bsize:(j+1)*bsize, :]
             batch_y = train_y[j*bsize:(j+1)*bsize]
             # Update parameters
             batch_up(batch_x, batch_y)
