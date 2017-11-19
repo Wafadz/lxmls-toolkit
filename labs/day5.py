@@ -49,18 +49,17 @@ train_x = scr.train_X.T
 train_y = scr.train_y[:, 0]
 test_x = scr.test_X.T
 test_y = scr.test_y[:, 0]
-#
+input_size = train_x.shape[0]
 
 #
 # Neural network modules
-import lxmls.deep_learning.mlp as dl
+from lxmls.deep_learning.numpy_mlp import NumpyMLP
 import lxmls.deep_learning.sgd as sgd
 # Model parameters
-geometry = [train_x.shape[0], 20, 2]
+geometry = [input_size, 20, 2]
 actvfunc = ['sigmoid', 'softmax']
 # Instantiate model
-mlp = dl.NumpyMLP(geometry, actvfunc)
-#
+mlp = NumpyMLP(geometry, actvfunc)
 
 #
 # Model parameters
@@ -73,6 +72,8 @@ acc_train = sgd.class_acc(mlp.forward(train_x), train_y)[0]
 acc_test = sgd.class_acc(mlp.forward(test_x), test_y)[0]
 print "MLP %s Model Amazon Sentiment Accuracy train: %f test: %f" % (geometry, acc_train, acc_test)
 #
+
+exit()
 
 print "\n######################",
 print "\n   Exercise 5.2"
