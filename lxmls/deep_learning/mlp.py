@@ -89,8 +89,7 @@ class MLP():
             bias = np.zeros((1, geometry[n+1]))
 
             # Append parameters
-            parameters.append(weight)
-            parameters.append(bias)
+            parameters.append([weight, bias])
 
         return parameters, activation_functions
 

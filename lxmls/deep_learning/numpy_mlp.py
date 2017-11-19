@@ -27,11 +27,11 @@ class NumpyMLP(MLP):
         self.n_layers = len(actvfunc)
         if model_file:
             # Load model
-            self.params, self.actvfunc = self.load(model_file)
+            self.parameters, self.actvfunc = self.load(model_file)
         else:
             # Parameters are stored as [weight0, bias0, weight1, bias1, ... ]
             # for consistency with the theano way of storing parameters
-            self.params, self.actvfunc = self.init_weights(geometry, actvfunc)
+            self.parameters, self.actvfunc = self.init_weights(geometry, actvfunc)
 
     def forward(self, x, all_inputs=False):
         """
@@ -53,8 +53,7 @@ class NumpyMLP(MLP):
             layer_inputs.append(tilde_z)
 
             # Get weigths and bias of the layer (even and odd positions)
-            W = self.params[2*n]
-            b = self.params[2*n+1]
+            W, b = self.parameters[n]
 
             # Linear transformation
             z = np.dot(tilde_z, W.T) + b
@@ -82,15 +81,15 @@ class NumpyMLP(MLP):
         prob_y, layer_inputs = self.forward(x, all_inputs=True)
 
         # For each layer in reverse store the gradients for each parameter
-        nabla_params = [None] * (2*self.n_layers)
+        nabla_parameters = []
 
         for n in np.arange(self.n_layers-1, -1, -1):
 
             # Get weigths and bias (always in even and odd positions)
             # Note that sometimes we need the weight from the next layer
-            W = self.params[2*n]
+            W = self.parameters[n][0]
             if n != self.n_layers-1:
-                W_next = self.params[2*(n+1)]
+                W_next = self.parameters[n+1][0]
 
             # ----------
             # Solution to Exercise 6.2
@@ -124,7 +123,6 @@ class NumpyMLP(MLP):
             # ----------
 
             # Store the gradients
-            nabla_params[2*n] = nabla_W
-            nabla_params[2*n+1] = nabla_b
+            nabla_parameters.append((nabla_W, nabla_b))
 
-        return nabla_params
+        return nabla_parameters[::-1]

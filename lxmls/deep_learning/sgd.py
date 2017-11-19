@@ -2,8 +2,6 @@ from __future__ import division
 import sys
 import numpy as np
 import time
-#import theano
-#import theano.tensor as T
 
 
 def get_numpy_batch_update(model, lrate, theano=False):
@@ -24,12 +22,21 @@ def get_numpy_batch_update(model, lrate, theano=False):
             Update for theano.shared variables
             '''
             # Get gradients for each layer and this batch
-            nabla_params = model.grads(batch_x, batch_y)
+            nabla_parameters = model.grads(batch_x, batch_y)
             # Update each parameter with SGD rule
-            for m in np.arange(len(model.params)):
-                # Parameters as theano shared variables
-                model.params[m].set_value(model.params[m].get_value()
-                                          - lrate*np.array(nabla_params[m]))
+            for m in np.arange(len(model.parameters)):
+
+                # Update weight
+                model.parameters[m][0].set_value(
+                    model.parameters[m][0].get_value() -
+                    lrate*np.array(nabla_parameters[m][0])
+                )
+
+                # Update bias
+                model.parameters[m][1].set_value(
+                    model.parameters[m][1].get_value() -
+                    lrate*np.array(nabla_parameters[m][1])
+                )
 
     else:
 
@@ -38,12 +45,15 @@ def get_numpy_batch_update(model, lrate, theano=False):
             Update for numpy arrays
             '''
             # Get gradients for each layer and this batch
-            # Get gradients for each layer and this batch
-            nabla_params = model.grads(batch_x, batch_y)
+            nabla_parameters = model.grads(batch_x, batch_y)
             # Update each parameter with SGD rule
-            for m in np.arange(len(model.params)):
-                # Parameters as theano shared variables
-                model.params[m] -= lrate * nabla_params[m]
+            for m in np.arange(len(model.parameters)):
+
+                # Update weight
+                model.parameters[m][0] -= lrate * nabla_parameters[m][0]
+
+                # Update bias
+                model.parameters[m][1] -= lrate * nabla_parameters[m][1]
 
     return batch_up
 
