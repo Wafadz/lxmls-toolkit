@@ -5,12 +5,12 @@ import yaml
 import numpy as np
 
 
-def load_parameters(self, parameter_file):
+def load_parameters(parameter_file):
     """
     Load model
     """
-    with open(parameter_file) as fid:
-        parameters = cPickle.load(fid, cPickle.HIGHEST_PROTOCOL)
+    with open(parameter_file, 'rb') as fid:
+        parameters = cPickle.load(fid)
     return parameters
 
 
@@ -80,7 +80,7 @@ def initialize_parameters(geometry, activation_functions,
         # Weights
         if loaded_parameters is not None:
             weight, bias = loaded_parameters[n]
-            assert weight.shape == (geometry[n], geometry[n+1]), \
+            assert weight.shape == (geometry[n+1], geometry[n]), \
                 "New geometry does not match for weigths in layer %d" % n
             assert bias.shape == (1, geometry[n+1]), \
                 "New geometry does not match for bias in layer %d" % n
@@ -175,9 +175,13 @@ class MLP():
         Save model
         """
 
+        # Create folder if it does not exist
+        if not os.path.isdir(model_folder):
+            os.mkdir(model_folder)
+
         # Configuration un yaml format
         config_file = "%s/config.yml" % model_folder
-        save_config(config_file)
+        save_config(config_file, self.config)
 
         # Computation graph parameters as pickle file
         parameter_file = "%s/parameters.pkl" % model_folder

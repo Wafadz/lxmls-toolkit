@@ -72,7 +72,6 @@ sgd.SGD_train(mlp, n_iter, bsize=bsize, lrate=learning_rate, train_set=(train_x,
 acc_train = sgd.class_acc(mlp.forward(train_x), train_y)[0]
 acc_test = sgd.class_acc(mlp.forward(test_x), test_y)[0]
 print "MLP %s Model Amazon Sentiment Accuracy train: %f test: %f" % (geometry, acc_train, acc_test)
-#
 
 exit()
 
