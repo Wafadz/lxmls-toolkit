@@ -58,7 +58,7 @@ class NumpyMLP(MLP):
         else:
             return tilde_z
 
-    def grads(self, x, y):
+    def gradients(self, x, y):
         """
        Computes the gradients of the network with respect to cross entropy
        error cost

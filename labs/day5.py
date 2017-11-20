@@ -45,6 +45,8 @@ print "######################"
 import numpy as np
 import lxmls.readers.sentiment_reader as srs
 scr = srs.SentimentCorpus("books")
+data = Data(scr)
+
 train_x, train_y = scr.train_X, scr.train_y[:, 0]
 test_x, test_y = scr.test_X, scr.test_y[:, 0]
 input_size = train_x.shape[1]
@@ -64,9 +66,31 @@ mlp = NumpyMLP(config=dict(
     learning_rate=learning_rate
 ))
 
-# Model parameters
-n_iter = 5
-bsize = 5
+# Training parameters
+num_epochs = 5
+batch_size = 5
+
+# TODO: Use here mini-bench
+from lxmls.deep_learning.bench import Data, categorical_scores
+# Create batch iterator
+import ipdb;ipdb.set_trace(context=30)
+
+# Get data batches
+train_batches = data.batches('train', batch_size=batch_size)
+test_x, test_y = data.batches('test', batch_size=None)[0]
+
+# Epoch loop
+for num_iter in range(num_epochs):
+
+    # Training
+    for batch_x, batch_y in train_batches:
+        mlp.update(batch_x, batch_y)
+
+    # Evaluation
+    prob_y = mlp.predict(test_x)
+    accuracy, log_prob = categorical_scores(prob_y, test_y)
+
+
 # Train
 sgd.SGD_train(mlp, n_iter, bsize=bsize, lrate=learning_rate, train_set=(train_x, train_y))
 acc_train = sgd.class_acc(mlp.forward(train_x), train_y)[0]
