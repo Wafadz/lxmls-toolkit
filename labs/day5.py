@@ -49,23 +49,26 @@ train_x, train_y = scr.train_X, scr.train_y[:, 0]
 test_x, test_y = scr.test_X, scr.test_y[:, 0]
 input_size = train_x.shape[1]
 
-#
 # Neural network modules
 from lxmls.deep_learning.numpy_mlp import NumpyMLP
 import lxmls.deep_learning.sgd as sgd
-# Model parameters
+# Model configuration
 geometry = [input_size, 20, 2]
-actvfunc = ['sigmoid', 'softmax']
-# Instantiate model
-mlp = NumpyMLP(geometry, actvfunc)
+activation_functions = ['sigmoid', 'softmax']
+learning_rate = 0.05
 
-#
+# Instantiate model
+mlp = NumpyMLP(config=dict(
+    geometry=geometry,
+    activation_functions=activation_functions,
+    learning_rate=learning_rate
+))
+
 # Model parameters
 n_iter = 5
 bsize = 5
-lrate = 0.05
 # Train
-sgd.SGD_train(mlp, n_iter, bsize=bsize, lrate=lrate, train_set=(train_x, train_y))
+sgd.SGD_train(mlp, n_iter, bsize=bsize, lrate=learning_rate, train_set=(train_x, train_y))
 acc_train = sgd.class_acc(mlp.forward(train_x), train_y)[0]
 acc_test = sgd.class_acc(mlp.forward(test_x), test_y)[0]
 print "MLP %s Model Amazon Sentiment Accuracy train: %f test: %f" % (geometry, acc_train, acc_test)
@@ -77,55 +80,49 @@ print "\n######################",
 print "\n   Exercise 5.2"
 print "######################"
 
-#
+# Compare Numpy and Pytorch code
+# Weigths and bias of fist layer
+W1, b1 = mlp.parameters[0]
+
 # Numpy code
 import numpy as np
-x = test_x  # Test set
-W1, b1 = mlp.params[0:2]  # Weigths and bias of fist layer
-z1 = np.dot(W1, x) + b1  # Linear transformation
-tilde_z1 = 1 / (1+np.exp(-z1))  # Non-linear transformation
-#
+
+def layer1_numpy(x, weight, bias):
+
+    # Linear transformation
+    z1 = np.dot(x, weight.T) + bias
+
+    # Non-linear transformation (sigmoid)
+    tilde_z =  1 / (1 + np.exp(-z1))
+
+    return tilde_z
+
+layer1_numpy(test_x, W1, b1)
 
 # Pytorch code.
 import torch
 from torch.autograd import Variable
-dtype = torch.FloatTensor
-_x = Variable(torch.randn(bsize, geometry[0]).type(dtype), requires_grad=False)
-torch.dot()
 
-import theano
-import theano.tensor as T
-_x = T.matrix('x')
-#
+def layer1_pytorch(x, weight, bias):
 
-#
-_W1 = theano.shared(value=W1, name='W1', borrow=True)
-_b1 = theano.shared(value=b1, name='b1', borrow=True,
-                    broadcastable=(False, True))
-#
+    # Cast variables to pytorch types
+    x = Variable(torch.from_numpy(x).float(), requires_grad=False)
+    weight = Variable(torch.from_numpy(weight).float())
+    bias = Variable(torch.from_numpy(bias).float())
 
-#
-# Perceptron
-_z1 = T.dot(_W1, _x) + _b1
-_tilde_z1 = T.nnet.sigmoid(_z1)
-# Keep in mind that naming variables is useful when debugging
-_z1.name = 'z1'
-_tilde_z1.name = 'tilde_z1'
-#
+    # Linear transformation
+    z1 = torch.matmul(x, torch.t(weight)) + torch.t(bias)
 
-#
-# Show computation graph
-print "\nThis is my symbolic perceptron\n"
-theano.printing.debugprint(_tilde_z1)
-#
+    # Non-linear transformation (sigmoid)
+    tilde_z = torch.sigmoid(z1)
 
-#
-# Compile
-layer1 = theano.function([_x], _tilde_z1)
-#
+    return tilde_z
 
 # Check Numpy and Theano mactch
-if np.allclose(tilde_z1, layer1(x.astype(theano.config.floatX))):
+if np.allclose(
+    layer1_numpy(test_x),
+    layer1_pytorch(test_x)
+):
     print "\nNumpy and Theano Perceptrons are equivalent"
 else:
     set_trace()
@@ -224,7 +221,7 @@ actvfunc = ['sigmoid', 'softmax']
 mlp_a = dl.NumpyMLP(geometry, actvfunc)
 #
 init_t = time.clock()
-sgd.SGD_train(mlp_a, n_iter, bsize=bsize, lrate=lrate, train_set=(train_x, train_y))
+sgd.SGD_train(mlp_a, n_iter, bsize=bsize, learning_rate=learning_rate, train_set=(train_x, train_y))
 print "\nNumpy version took %2.2f sec" % (time.clock() - init_t)
 acc_train = sgd.class_acc(mlp_a.forward(train_x), train_y)[0]
 acc_test = sgd.class_acc(mlp_a.forward(test_x), test_y)[0]
@@ -233,7 +230,7 @@ print "Amazon Sentiment Accuracy train: %f test: %f\n" % (acc_train, acc_test)
 # Theano grads
 mlp_b = dl.TheanoMLP(geometry, actvfunc)
 init_t = time.clock()
-sgd.SGD_train(mlp_b, n_iter, bsize=bsize, lrate=lrate, train_set=(train_x, train_y))
+sgd.SGD_train(mlp_b, n_iter, bsize=bsize, learning_rate=learning_rate, train_set=(train_x, train_y))
 print "\nCompiled gradient version took %2.2f sec" % (time.clock() - init_t)
 acc_train = sgd.class_acc(mlp_b.forward(train_x), train_y)[0]
 acc_test = sgd.class_acc(mlp_b.forward(test_x), test_y)[0]
@@ -258,7 +255,7 @@ mlp_c = dl.TheanoMLP(geometry, actvfunc)
 _x = T.matrix('x')
 _y = T.ivector('y')
 _F = mlp_c._cost(_x, _y)
-updates = [(par, par - lrate*T.grad(_F, par)) for par in mlp_c.params]
+updates = [(par, par - learning_rate*T.grad(_F, par)) for par in mlp_c.params]
 
 #
 # Define the batch update function. This will return the cost of each batch

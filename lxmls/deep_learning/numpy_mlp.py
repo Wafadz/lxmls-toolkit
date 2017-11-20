@@ -10,28 +10,13 @@ class NumpyMLP(MLP):
     Basic MLP with forward-pass and gradient computation in Numpy
     """
 
-    def __init__(self, geometry, actvfunc, model_file=None):
-        """
-        Input: geometry  tuple with sizes of layer
+    def __init__(self, config=None, model_folder=None):
 
-        Input: actvfunc  list of strings indicating the type of activation
-                         function. Supported 'sigmoid', 'softmax'
-
-        Input: rng       string inidcating random seed
-        """
-
-        # CHECK THE PARAMETERS ARE VALID
-        self.sanity_checks(geometry, actvfunc, model_file)
-
-        # THIS DEFINES THE MLP
-        self.n_layers = len(actvfunc)
-        if model_file:
-            # Load model
-            self.parameters, self.actvfunc = self.load(model_file)
-        else:
-            # Parameters are stored as [weight0, bias0, weight1, bias1, ... ]
-            # for consistency with the theano way of storing parameters
-            self.parameters, self.actvfunc = self.init_weights(geometry, actvfunc)
+        # This will initialize
+        # self.num_layers
+        # self.config
+        # self.parameters
+        MLP.__init__(self, config=config, model_folder=model_folder)
 
     def forward(self, x, all_inputs=False):
         """
@@ -42,30 +27,32 @@ class NumpyMLP(MLP):
 
         # This will store activations at each layer and the input. This is
         # needed to compute backpropagation
+        activation_functions = self.config['activation_functions']
 
         # Input
         tilde_z = x
         layer_inputs = []
 
-        for n in range(self.n_layers):
+        for n in range(self.num_layers):
 
             # Store input to this layer (needed for backpropagation)
             layer_inputs.append(tilde_z)
 
             # Get weigths and bias of the layer (even and odd positions)
-            W, b = self.parameters[n]
+            weight, bias = self.parameters[n]
 
             # Linear transformation
-            z = np.dot(tilde_z, W.T) + b
+            z = np.dot(tilde_z, weight.T) + bias
 
             # Non-linear transformation
-            if self.actvfunc[n] == "sigmoid":
+            if activation_functions[n] == "sigmoid":
                 tilde_z = 1.0 / (1 + np.exp(-z))
 
-            elif self.actvfunc[n] == "softmax":
+            elif activation_functions[n] == "softmax":
                 # Softmax is computed in log-domain to prevent
                 # underflow/overflow
                 tilde_z = np.exp(z - logsumexp(z, axis=1)[:, None])
+
         if all_inputs:
             return tilde_z, layer_inputs
         else:
@@ -81,14 +68,14 @@ class NumpyMLP(MLP):
         prob_y, layer_inputs = self.forward(x, all_inputs=True)
 
         # For each layer in reverse store the gradients for each parameter
+        activation_functions = self.config['activation_functions']
         nabla_parameters = []
-
-        for n in np.arange(self.n_layers-1, -1, -1):
+        for n in np.arange(self.num_layers-1, -1, -1):
 
             # Get weigths and bias (always in even and odd positions)
             # Note that sometimes we need the weight from the next layer
             W = self.parameters[n][0]
-            if n != self.n_layers-1:
+            if n != self.num_layers-1:
                 W_next = self.parameters[n+1][0]
 
             # ----------
@@ -96,11 +83,11 @@ class NumpyMLP(MLP):
 
             # If it is the last layer, compute the average cost gradient
             # Otherwise, propagate the error backwards from the next layer
-            if n == self.n_layers-1:
+            if n == self.num_layers-1:
                 # NOTE: This assumes cross entropy cost
-                if self.actvfunc[n] == 'sigmoid':
+                if activation_functions[n] == 'sigmoid':
                     e = (prob_y - y) / y.shape[0]
-                elif self.actvfunc[n] == 'softmax':
+                elif activation_functions[n] == 'softmax':
                     I = index2onehot(y, W.shape[0])
                     e = (prob_y - I) / y.shape[0]
 

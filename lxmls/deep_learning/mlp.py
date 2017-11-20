@@ -1,5 +1,28 @@
-import numpy as np
+import os
 import cPickle
+#
+import yaml
+import numpy as np
+
+
+def load_parameters(self, parameter_file):
+    """
+    Load model
+    """
+    with open(parameter_file) as fid:
+        parameters = cPickle.load(fid, cPickle.HIGHEST_PROTOCOL)
+    return parameters
+
+
+def load_config(config_path):
+    with open(config_path, 'r') as fid:
+        config = yaml.load(fid)
+    return config
+
+
+def save_config(config_path, config):
+    with open(config_path, 'w') as fid:
+        yaml.dump(config, fid, default_flow_style=False)
 
 
 def index2onehot(index, N):
@@ -16,11 +39,12 @@ def index2onehot(index, N):
     return onehot
 
 
-def glorot_weight_init(num_inputs, num_outputs, activation_function,
-                       random_seed):
+def glorot_weight_init(shape, activation_function, random_seed):
     """
     Layer weight initialization after Xavier Glorot et. al
     """
+
+    num_inputs, num_outputs = shape
 
     weight = random_seed.uniform(
         low=-np.sqrt(6. / (num_inputs + num_outputs)),
@@ -35,52 +59,35 @@ def glorot_weight_init(num_inputs, num_outputs, activation_function,
     return weight
 
 
-class MLP():
+def initialize_parameters(geometry, activation_functions,
+                          loaded_parameters=None, random_seed=None):
     """
-    Basic MLP class mathods
+    Initialize parameters from geometry or existing weights
     """
 
-    def __init__(self, geometry, activation_function, rng=None,
-                 model_file=None):
-        """
-        Input: geometry  tuple with sizes of layer
+    # Initialize random seed if not given
+    if random_seed is None:
+        random_seed = np.random.RandomState(1234)
 
-        Input: activation_function  list of strings indicating the type of
-                                    activation function. Supported 'sigmoid',
-                                    'softmax'
+    if loaded_parameters is not None:
+        assert len(loaded_parameters) == len(activation_functions), \
+            "New geometry not matching model saved"
 
-        Input: rng       string indicating random seed
-        """
-        pass
+    parameters = []
+    num_layers = len(activation_functions)
+    for n in range(num_layers):
 
-    def forward(self, x, all_outputs=False):
-        """
-        Forward pass
+        # Weights
+        if loaded_parameters is not None:
+            weight, bias = loaded_parameters[n]
+            assert weight.shape == (geometry[n], geometry[n+1]), \
+                "New geometry does not match for weigths in layer %d" % n
+            assert bias.shape == (1, geometry[n+1]), \
+                "New geometry does not match for bias in layer %d" % n
 
-        all_outputs = True  return intermediate activations
-        """
-        raise Exception("Implement forward in the child class")
-
-    def gradients(self, x, y):
-        """
-        Computes the gradients of the network with respect to cross entropy
-        error cost
-        """
-        raise Exception("Implement gradients in the child class")
-
-    def init_weights(self, geometry, activation_functions, random_seed=None):
-
-        # Initialize random seed if not given
-        if not random_seed:
-            random_seed = np.random.RandomState(1234)
-
-        parameters = []
-        for n in range(self.n_layers):
-
-            # Weights
+        else:
             weight = glorot_weight_init(
-                geometry[n],
-                geometry[n+1],
+                (geometry[n], geometry[n+1]),
                 activation_functions[n],
                 random_seed
             )
@@ -88,77 +95,117 @@ class MLP():
             # Bias
             bias = np.zeros((1, geometry[n+1]))
 
-            # Append parameters
-            parameters.append([weight, bias])
+        # Append parameters
+        parameters.append([weight, bias])
 
-        return parameters, activation_functions
+    return parameters
 
-    def sanity_checks(self, geometry, activation_function, model_file):
 
-        # CHECK GENRERAL CONFIGURATION
-        if model_file and (geometry or activation_function):
-            raise ValueError(
-                "If you load a model geometry and activation_function"
-                "should be None"
-            )
+class MLP():
+    """
+    Basic MLP class methods
+    """
 
-        # CHECK ACTIVATIONS
-        if activation_function:
-            # Supported activation_function
-            supported_acts = ['sigmoid', 'softmax']
-            if geometry and (len(activation_function) != len(geometry)-1):
-                raise ValueError(
-                    "The number of layers and activation_function does not"
-                    " match"
-                )
-            elif any(
-                [act not in supported_acts for act in activation_function]
-            ):
-                raise ValueError(
-                    "Only these activation_function supported %s" %
-                    (" ".join(supported_acts))
-                )
-            # All internal layers must be a sigmoid
-            for internal_act in activation_function[:-1]:
-                if internal_act != 'sigmoid':
-                    raise ValueError("Intermediate layers must be sigmoid")
+    def __init__(self, config=None, model_folder=None):
 
-    def save(self, model_path):
-        """
-        Save model
-        """
-        par = self.parameters + self.activation_function
-        with open(model_path, 'wb') as fid:
-            cPickle.dump(par, fid, cPickle.HIGHEST_PROTOCOL)
+        # CHECK THE PARAMETERS ARE VALID
+        self.sanity_checks(config, model_folder)
 
-    def load(self, model_path):
+        # OPTIONAL MODEL LOADING
+        if model_folder is not None:
+            saved_config, loaded_parameters = self.load(model_folder)
+            # Note that if a config is given this is used instead of the saved
+            # one (must be consistent)
+            if config is None:
+                config = saved_config
+        else:
+            loaded_parameters = None
+
+        # MEMBER VARIABLES
+        self.num_layers = len(config['activation_functions'])
+        self.config = config
+        self.parameters = initialize_parameters(
+            config['geometry'],
+            config['activation_functions'],
+            loaded_parameters
+        )
+
+    def sanity_checks(self, config, model_folder):
+
+        assert bool(config is None) or bool(model_folder is None), \
+            "Need to specify config, model_folder or both"
+
+        if config is not None:
+
+            geometry = config['geometry']
+            activation_functions = config['activation_functions']
+
+            assert len(activation_functions) == len(geometry) - 1, \
+                "geometry and activation_functions sizs do not match"
+
+            assert all(
+                afun == 'sigmoid'
+                for afun in activation_functions[:-1]
+            ), "Hidden layer activations must be sigmoid"
+
+            assert activation_functions[-1] in ['sigmoid', 'softmax'], \
+                "Output layer activations must be sigmoid or softmax"
+
+        if model_folder is not None:
+            model_file = "%s/config.yml" % model_folder
+            assert os.path.isfile(model_file), "Need to provide %s" % model_file
+
+    def load(self, model_folder):
         """
         Load model
         """
-        with open(model_path) as fid:
-            par = cPickle.load(fid, cPickle.HIGHEST_PROTOCOL)
-            parameters = par[:len(par)//2]
-            activation_function = par[len(par)//2:]
-        return parameters, activation_function
+
+        # Configuration un yaml format
+        config_file = "%s/config.yml" % model_folder
+        config = load_config(config_file)
+
+        # Computation graph parameters as pickle file
+        parameter_file = "%s/parameters.pkl" % model_folder
+        loaded_parameters = load_parameters(parameter_file)
+
+        return config, loaded_parameters
+
+    def save(self, model_folder):
+        """
+        Save model
+        """
+
+        # Configuration un yaml format
+        config_file = "%s/config.yml" % model_folder
+        save_config(config_file)
+
+        # Computation graph parameters as pickle file
+        parameter_file = "%s/parameters.pkl" % model_folder
+        with open(parameter_file, 'wb') as fid:
+            cPickle.dump(self.parameters, fid, cPickle.HIGHEST_PROTOCOL)
 
     def plot_weights(self, show=True, aspect='auto'):
         """
         Plots the weights of the newtwork
+
+        Use show = False to plot various models one after the other
         """
         import matplotlib.pyplot as plt
         plt.figure()
         for n in range(self.n_layers):
-            # Get weights
-            W = self.parameters[2*n]
-            b = self.parameters[2*n+1]
 
+            # Get weights and bias
+            weight, bias = self.parameters[n]
+
+            # Plot them
             plt.subplot(2, self.n_layers, n+1)
-            plt.imshow(W, aspect=aspect, interpolation='nearest')
+            plt.imshow(weight, aspect=aspect, interpolation='nearest')
             plt.title('Layer %d Weight' % n)
             plt.colorbar()
             plt.subplot(2, self.n_layers, self.n_layers+(n+1))
-            plt.plot(b)
+            plt.plot(bias)
             plt.title('Layer %d Bias' % n)
             plt.colorbar()
+
         if show:
             plt.show()
