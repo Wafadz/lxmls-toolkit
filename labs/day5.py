@@ -44,12 +44,10 @@ print "######################"
 #
 import numpy as np
 import lxmls.readers.sentiment_reader as srs
-scr = srs.SentimentCorpus("books")
-data = Data(scr)
-
-train_x, train_y = scr.train_X, scr.train_y[:, 0]
-test_x, test_y = scr.test_X, scr.test_y[:, 0]
-input_size = train_x.shape[1]
+from lxmls.deep_learning.bench import Data
+data = Data({'corpus': srs.SentimentCorpus("books")})
+# Get input size
+input_size = data.batches('train')[0]['input'].shape[1]
 
 # Neural network modules
 from lxmls.deep_learning.numpy_mlp import NumpyMLP
@@ -71,24 +69,24 @@ num_epochs = 5
 batch_size = 5
 
 # TODO: Use here mini-bench
-from lxmls.deep_learning.bench import Data, categorical_scores
+from lxmls.deep_learning.bench import categorical_scores
 # Create batch iterator
-import ipdb;ipdb.set_trace(context=30)
 
 # Get data batches
 train_batches = data.batches('train', batch_size=batch_size)
-test_x, test_y = data.batches('test', batch_size=None)[0]
+test_set = data.batches('test', batch_size=None)[0]
 
 # Epoch loop
 for num_iter in range(num_epochs):
 
     # Training
-    for batch_x, batch_y in train_batches:
-        mlp.update(batch_x, batch_y)
+    for batch in train_batches:
+        mlp.update(**batch)
 
     # Evaluation
-    prob_y = mlp.predict(test_x)
-    accuracy, log_prob = categorical_scores(prob_y, test_y)
+    prob_y = mlp.predict(input=test_set['input'])
+    import ipdb;ipdb.set_trace(context=30)
+    accuracy, log_prob = categorical_scores(prob_y, test_set['output'])
 
 
 # Train

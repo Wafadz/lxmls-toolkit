@@ -164,17 +164,17 @@ class MLP():
     def gradients(self, x):
         raise Exception("Implement this in the child class")
 
-    def predict(self, batch_x):
+    def predict(self, input=None):
         """
         Predict model outputs given input
         """
-        return np.argmax(self.forward(batch_x), axis=1)
+        return np.argmax(self.forward(input), axis=1)
 
-    def update(self, batch_x, batch_y):
+    def update(self, input=None, output=None):
         """
         Update model parameters given batch of data
         """
-        gradients = self.gradients(batch_x, batch_y)
+        gradients = self.gradients(input, output)
         learning_rate = self.config['learning_rate']
         # Update each parameter with SGD rule
         for m in np.arange(self.num_layers):
