@@ -1,108 +1,114 @@
 from __future__ import division
+import numpy as np
 import torch
 from torch.autograd import Variable
+#
+from lxmls.deep_learning.mlp import MLP, index2onehot
 
+def cast_float(variable):
+    return Variable(torch.from_numpy(variable).float(), requires_grad=True)
 
-class PytorchMLP(NumpyMLP):
+class PytorchMLP(MLP):
     """
-    MLP VERSION USING THEANO
+    Basic MLP with forward-pass and gradient computation in Pytorch
     """
 
-    def __init__(self, geometry, actvfunc, rng=None, model_file=None):
+    def __init__(self, **config):
+
+        # This will initialize
+        # self.num_layers
+        # self.config
+        # self.parameters
+        MLP.__init__(self, **config)
+
+        # Need to cast all weights
+        for n in range(self.num_layers):
+            # Get weigths and bias of the layer (even and odd positions)
+            weight, bias = self.parameters[n]
+            self.parameters[n] = [cast_float(weight), cast_float(bias)]
+
+    def _log_forward(self, input):
         """
-        Input: geometry  tuple with sizes of layer
-
-        Input: actvfunc  list of strings indicating the type of activation
-                         function. Supported 'sigmoid', 'softmax'
-
-        Input: rng       string inidcating random seed
-        """
-
-        # Generate random seed if not provided
-        if rng is None:
-            rng = np.random.RandomState(1234)
-
-        # This will call NumpyMLP.__init__.py intializing
-        # Defining: self.n_layers self.params self.actvfunc
-        NumpyMLP.__init__(self, geometry, actvfunc, rng=rng, model_file=model_file)
-
-        # The parameters in the Theano MLP are stored as shared, borrowed
-        # variables. This data will be moved to the GPU when used
-        # use self.params.get_value() and self.params.set_value() to acces or
-        # modify the data in the shared variables
-        self.shared_params()
-
-        self.cost = torch.nn.MSELoss(size_average=False)
-
-    def shared_params(self):
-
-        params = [None] * (2*self.n_layers)
-        for n in range(self.n_layers):
-            # Get Numpy weigths and bias (always in even and odd positions)
-            W = self.params[2*n]
-            b = self.params[2*n+1]
-
-            # IMPORTANT: Ensure the types in the variables and theano operations
-            # match. This is ofte a source of errors
-            W = torch.from_numpy(W).float()
-            b = torch.from_numpy(b).float()
-
-            # Store weight and bias, now as theano shared variables
-            params[2*n] = W
-            params[2*n+1] = b
-
-        # Overwrite our params
-        self.params = params
-
-    def forward(self, x, all_outputs=False):
-        """
-        Symbolic forward pass
-
-        all_outputs = True  return symbolic input and intermediate activations
+        Forward pass
         """
 
         # Ensure the type matches torch type
-        x = Variable(torch.from_numpy(x).float(), requires_grad=False)
+        input = cast_float(input)
 
-        # This will store activations at each layer and the input. This is
-        # needed to compute backpropagation
-        if all_outputs:
-            activations = [x]
+        # This will store activations at each layer 
+        activation_functions = self.config['activation_functions']
 
         # Input
-        tilde_z = x
+        tilde_z = input
 
         # ----------
         # Solution to Exercise 6.4
-        for n in range(self.n_layers):
+        for n in range(self.num_layers):
 
-            # Get weigths and bias (always in even and odd positions)
-            W = self.params[2*n]
-            b = self.params[2*n+1]
+            # Get weigths and bias of the layer (even and odd positions)
+            weight, bias = self.parameters[n]
 
             # Linear transformation
-            z = torch.matmul(W, tilde_z) + b
+            z = torch.matmul(tilde_z, torch.t(weight)) + bias
 
             # Non-linear transformation
-            if self.actvfunc[n] == "sigmoid":
+            if activation_functions[n] == "sigmoid":
                 tilde_z = torch.sigmoid(z)
-            elif self.actvfunc[n] == "softmax":
-                import ipdb;ipdb.set_trace(context=30)
-                tilde_z = torch.nn.softmax(z.T).T
 
-            if all_outputs:
-                activations.append(tilde_z)
+            elif activation_functions[n] == "softmax":
+                # Softmax is computed in log-domain to prevent
+                # underflow/overflow
+                log_tilde_z = torch.nn.LogSoftmax()(z)
+
         # End of solution to Exercise 6.4
         # ----------
 
-        if all_outputs:
-            tilde_z = activations
+        return log_tilde_z
 
-        return tilde_z
+    def gradients(self, input, output):
+        """
+        Computes the gradients of the network with respect to cross entropy
+        error cost
+        """
+        true_class = Variable(
+            torch.from_numpy(output).long(),
+            requires_grad=False
+        )
+        
+        # Compute negative log-likelihood loss
+        _log_forward = self._log_forward(input)
+        loss = torch.nn.NLLLoss()(_log_forward, true_class)
+        # Use autograd to compute the backward pass.
+        loss.backward()
 
-    def update(self, x, y):
-        # TODO: Better do it operation by operation
-        raise NotImplementedError()
+        nabla_parameters = []
+        for n in range(self.num_layers):
+            weight, bias = self.parameters[n]
+            nabla_parameters.append([weight.grad.data, bias.grad.data])
+        return nabla_parameters
 
+    def predict(self, input=None):
+        """
+        Predict model outputs given input
+        """
+        log_forward = self._log_forward(input).data.numpy()
+        return np.argmax(np.exp(log_forward), axis=1)
 
+    def update(self, input=None, output=None):
+        """
+        Update model parameters given batch of data
+        """
+        gradients = self.gradients(input, output)
+        learning_rate = self.config['learning_rate']
+        # Update each parameter with SGD rule
+        for m in np.arange(self.num_layers):
+            # Update weight
+            self.parameters[m][0].data -= learning_rate * gradients[m][0]
+            # Update bias
+            self.parameters[m][1].data -= learning_rate * gradients[m][1]
 
+        # Zero gradients
+        for n in np.arange(self.num_layers):
+            weight, bias = self.parameters[n]
+            weight.grad.data.zero_()
+            bias.grad.data.zero_()

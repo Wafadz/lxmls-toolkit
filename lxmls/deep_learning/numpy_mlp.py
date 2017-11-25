@@ -18,19 +18,18 @@ class NumpyMLP(MLP):
         # self.parameters
         MLP.__init__(self, **config)
 
-    def forward(self, x, all_inputs=False):
+    def log_forward(self, input, all_inputs=False):
         """
         Forward pass
 
         all_inputs = True  return intermediate activations
         """
 
-        # This will store activations at each layer and the input. This is
-        # needed to compute backpropagation
+        # This will store activations at each layer 
         activation_functions = self.config['activation_functions']
 
         # Input
-        tilde_z = x
+        tilde_z = input
         layer_inputs = []
 
         for n in range(self.num_layers):
@@ -51,21 +50,22 @@ class NumpyMLP(MLP):
             elif activation_functions[n] == "softmax":
                 # Softmax is computed in log-domain to prevent
                 # underflow/overflow
-                tilde_z = np.exp(z - logsumexp(z, axis=1)[:, None])
+                log_tilde_z = z - logsumexp(z, axis=1)[:, None]
 
         if all_inputs:
-            return tilde_z, layer_inputs
+            return log_tilde_z, layer_inputs
         else:
-            return tilde_z
+            return log_tilde_z
 
-    def gradients(self, x, y):
+    def gradients(self, input, output):
         """
-       Computes the gradients of the network with respect to cross entropy
-       error cost
-       """
+        Computes the gradients of the network with respect to cross entropy
+        error cost
+        """
 
         # Run forward and store activations for each layer
-        prob_y, layer_inputs = self.forward(x, all_inputs=True)
+        log_prob_y, layer_inputs = self.log_forward(input, all_inputs=True)
+        prob_y = np.exp(log_prob_y)
 
         # For each layer in reverse store the gradients for each parameter
         activation_functions = self.config['activation_functions']
@@ -86,10 +86,10 @@ class NumpyMLP(MLP):
             if n == self.num_layers-1:
                 # NOTE: This assumes cross entropy cost
                 if activation_functions[n] == 'sigmoid':
-                    e = (prob_y - y) / y.shape[0]
+                    e = (prob_y - output) / output.shape[0]
                 elif activation_functions[n] == 'softmax':
-                    I = index2onehot(y, W.shape[0])
-                    e = (prob_y - I) / y.shape[0]
+                    I = index2onehot(output, W.shape[0])
+                    e = (prob_y - I) / output.shape[0]
 
             else:
 
@@ -113,3 +113,23 @@ class NumpyMLP(MLP):
             nabla_parameters.append((nabla_W, nabla_b))
 
         return nabla_parameters[::-1]
+
+    def predict(self, input=None):
+        """
+        Predict model outputs given input
+        """
+        log_forward = self.log_forward(input)
+        return np.argmax(np.exp(log_forward), axis=1)
+
+    def update(self, input=None, output=None):
+        """
+        Update model parameters given batch of data
+        """
+        gradients = self.gradients(input, output)
+        learning_rate = self.config['learning_rate']
+        # Update each parameter with SGD rule
+        for m in np.arange(self.num_layers):
+            # Update weight
+            self.parameters[m][0] -= learning_rate * gradients[m][0]
+            # Update bias
+            self.parameters[m][1] -= learning_rate * gradients[m][1]

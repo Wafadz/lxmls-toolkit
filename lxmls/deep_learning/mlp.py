@@ -161,33 +161,17 @@ class MLP():
             model_file = "%s/config.yml" % model_folder
             assert os.path.isfile(model_file), "Need to provide %s" % model_file
 
-    # TODO: This four methods will have to be readjusted as we advance with
-    # pytorch and dynet
-
-    def forward(self, x):
-        raise Exception("Implement this in the child class")
-
-    def gradients(self, x):
-        raise Exception("Implement this in the child class")
-
     def predict(self, input=None):
         """
         Predict model outputs given input
         """
-        return np.argmax(self.forward(input), axis=1)
+        raise Exception("Implement this in the child class")
 
     def update(self, input=None, output=None):
         """
         Update model parameters given batch of data
         """
-        gradients = self.gradients(input, output)
-        learning_rate = self.config['learning_rate']
-        # Update each parameter with SGD rule
-        for m in np.arange(self.num_layers):
-            # Update weight
-            self.parameters[m][0] -= learning_rate * gradients[m][0]
-            # Update bias
-            self.parameters[m][1] -= learning_rate * gradients[m][1]
+        raise Exception("Implement this in the child class")
 
     def load(self, model_folder):
         """
