@@ -39,10 +39,13 @@ def index2onehot(index, N):
     return onehot
 
 
-def glorot_weight_init(shape, activation_function, random_seed):
+def glorot_weight_init(shape, activation_function, random_seed=None):
     """
     Layer weight initialization after Xavier Glorot et. al
     """
+
+    if random_seed is None:
+        random_seed = np.random.RandomState(1234)
 
     num_inputs, num_outputs = shape
 
@@ -106,12 +109,13 @@ class MLP():
     Basic MLP class methods
     """
 
-    def __init__(self, config=None, model_folder=None):
+    def __init__(self, **config):
 
         # CHECK THE PARAMETERS ARE VALID
-        self.sanity_checks(config, model_folder)
+        self.sanity_checks(config)
 
         # OPTIONAL MODEL LOADING
+        model_folder = config.get('model_folder', None)
         if model_folder is not None:
             saved_config, loaded_parameters = self.load(model_folder)
             # Note that if a config is given this is used instead of the saved
@@ -130,7 +134,9 @@ class MLP():
             loaded_parameters
         )
 
-    def sanity_checks(self, config, model_folder):
+    def sanity_checks(self, config):
+
+        model_folder = config.get('model_folder', None)
 
         assert bool(config is None) or bool(model_folder is None), \
             "Need to specify config, model_folder or both"

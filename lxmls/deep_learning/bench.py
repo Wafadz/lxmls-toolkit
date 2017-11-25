@@ -21,7 +21,11 @@ class Data(object):
     """
     Template
     """
-    def __init__(self, config):
+    def __init__(self, **kwargs):
+
+        # Create config from input arguments
+        config = kwargs
+
         # Data-sets
         self.datasets = {
             'train': {

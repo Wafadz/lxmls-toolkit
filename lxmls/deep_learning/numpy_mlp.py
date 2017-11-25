@@ -10,13 +10,13 @@ class NumpyMLP(MLP):
     Basic MLP with forward-pass and gradient computation in Numpy
     """
 
-    def __init__(self, config=None, model_folder=None):
+    def __init__(self, **config):
 
         # This will initialize
         # self.num_layers
         # self.config
         # self.parameters
-        MLP.__init__(self, config=config, model_folder=model_folder)
+        MLP.__init__(self, **config)
 
     def forward(self, x, all_inputs=False):
         """
