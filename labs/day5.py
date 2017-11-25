@@ -41,7 +41,6 @@ print "\n######################",
 print "\n   Exercise 5.1"
 print "######################"
 
-#
 import numpy as np
 import lxmls.readers.sentiment_reader as srs
 from lxmls.deep_learning.bench import Data
@@ -51,7 +50,6 @@ input_size = data.batches('train')[0]['input'].shape[1]
 
 # Neural network modules
 from lxmls.deep_learning.numpy_mlp import NumpyMLP
-import lxmls.deep_learning.sgd as sgd
 # Model configuration
 geometry = [input_size, 20, 2]
 activation_functions = ['sigmoid', 'softmax']
@@ -65,37 +63,28 @@ mlp = NumpyMLP(config=dict(
 ))
 
 # Training parameters
-num_epochs = 5
+num_epochs = 0
 batch_size = 5
 
-# TODO: Use here mini-bench
-from lxmls.deep_learning.bench import categorical_scores
-# Create batch iterator
-
-# Get data batches
+# Get batch iterators for train and test
 train_batches = data.batches('train', batch_size=batch_size)
 test_set = data.batches('test', batch_size=None)[0]
 
 # Epoch loop
-for num_iter in range(num_epochs):
+for epoch in range(num_epochs):
 
-    # Training
+    # Batch loop
     for batch in train_batches:
         mlp.update(**batch)
 
+    # Prediction for this epoch
+    hat_y = mlp.predict(input=test_set['input'])
+
     # Evaluation
-    prob_y = mlp.predict(input=test_set['input'])
-    import ipdb;ipdb.set_trace(context=30)
-    accuracy, log_prob = categorical_scores(prob_y, test_set['output'])
+    accuracy = 100*np.mean(hat_y == test_set['output'])
 
-
-# Train
-sgd.SGD_train(mlp, n_iter, bsize=bsize, lrate=learning_rate, train_set=(train_x, train_y))
-acc_train = sgd.class_acc(mlp.forward(train_x), train_y)[0]
-acc_test = sgd.class_acc(mlp.forward(test_x), test_y)[0]
-print "MLP %s Model Amazon Sentiment Accuracy train: %f test: %f" % (geometry, acc_train, acc_test)
-
-exit()
+    # Inform user
+    print("Epoch %d: Acuracy %2.2f %%" % (epoch, accuracy))
 
 print "\n######################",
 print "\n   Exercise 5.2"
@@ -118,8 +107,6 @@ def layer1_numpy(x, weight, bias):
 
     return tilde_z
 
-layer1_numpy(test_x, W1, b1)
-
 # Pytorch code.
 import torch
 from torch.autograd import Variable
@@ -139,15 +126,17 @@ def layer1_pytorch(x, weight, bias):
 
     return tilde_z
 
-# Check Numpy and Theano mactch
+# Check Numpy and Pytorch mactch
 if np.allclose(
-    layer1_numpy(test_x),
-    layer1_pytorch(test_x)
+    layer1_numpy(test_set),
+    layer1_pytorch(test_set)
 ):
     print "\nNumpy and Theano Perceptrons are equivalent"
 else:
     set_trace()
     # raise ValueError, "Numpy and Theano Perceptrons are different"
+
+exit()
 
 print "\n######################",
 print "\n   Exercise 5.4"
