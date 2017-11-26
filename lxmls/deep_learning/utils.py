@@ -118,14 +118,7 @@ class DataIterator(object):
 
 
 class Model(object):
-
-    def __init__(self, config=None, model_folder=None):
-        assert bool(model_folder) or bool(config), \
-            "Provide either model_folder, config or both"
-        if model_folder is not None:
-            self.load(model_folder)
-        else:
-            self.config = config
+    def __init__(self, **config):
         self.initialized = False
 
     def initialize_features(self, *args):
