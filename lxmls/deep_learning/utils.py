@@ -1,21 +1,50 @@
 import numpy as np
 
+#
+# UTILITIES
+#
 
-def categorical_scores(prob_y, y_ref):
 
-    assert prob_y.shape[0] == y_ref.shape[0], \
-        "Class probabilities and reference class sizes do not match"
+def index2onehot(index, N):
+    """
+    Transforms index to one-hot representation, for example
 
-    # Average probability set
-    pred = prob_y[np.arange(y_ref.shape[0]), y_ref]
-    log_prob = np.mean(np.log(pred))
+    Input: e.g. index = [1, 2, 0], N = 4
+    Output:     [[0, 1, 0, 0], [0, 0, 1, 0], [1, 0, 0, 0]]
+    """
+    L = index.shape[0]
+    onehot = np.zeros((L, N))
+    for l in np.arange(L):
+        onehot[l, index[l]] = 1
+    return onehot
 
-    # Accuracy in set
-    hat_y = np.argmax(prob_y, 1)
-    accuracy = np.mean(hat_y == y_ref)
 
-    return accuracy, log_prob
+def glorot_weight_init(shape, activation_function, random_seed=None):
+    """Layer weight initialization after Xavier Glorot et. al"""
 
+    if random_seed is None:
+        random_seed = np.random.RandomState(1234)
+
+    # Weights are uniform distributed with span depending on input and output
+    # sizes
+    num_inputs, num_outputs = shape
+    weight = random_seed.uniform(
+        low=-np.sqrt(6. / (num_inputs + num_outputs)),
+        high=np.sqrt(6. / (num_inputs + num_outputs)),
+        size=(num_outputs, num_inputs)
+    )
+
+    # Scaling factor depending on non-linearity
+    if activation_function == 'sigmoid':
+        weight *= 4
+    elif activation_function == 'softmax':
+        weight *= 4
+
+    return weight
+
+#
+# Templates for Model and Data
+#
 
 class Data(object):
     """

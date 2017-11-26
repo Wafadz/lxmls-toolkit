@@ -1,8 +1,8 @@
 from __future__ import division
 import numpy as np
 from scipy.misc import logsumexp
-#
-from lxmls.deep_learning.mlp import MLP, index2onehot
+from lxmls.deep_learning.mlp import MLP
+from lxmls.deep_learning.utils import index2onehot
 
 
 class NumpyMLP(MLP):
@@ -25,7 +25,7 @@ class NumpyMLP(MLP):
         all_inputs = True  return intermediate activations
         """
 
-        # This will store activations at each layer 
+        # This will store activations at each layer
         activation_functions = self.config['activation_functions']
 
         # Input

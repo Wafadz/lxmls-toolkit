@@ -1,8 +1,12 @@
+"""
+Basic MLP class methods for parameters initialization, saving, loading
+plotting
+"""
 import os
 import cPickle
-#
 import yaml
 import numpy as np
+from lxmls.deep_learning.utils import Model, glorot_weight_init
 
 
 def load_parameters(parameter_file):
@@ -23,43 +27,6 @@ def load_config(config_path):
 def save_config(config_path, config):
     with open(config_path, 'w') as fid:
         yaml.dump(config, fid, default_flow_style=False)
-
-
-def index2onehot(index, N):
-    """
-    Transforms index to one-hot representation, for example
-
-    Input: e.g. index = [1, 2, 0], N = 4
-    Output:     [[0, 1, 0, 0], [0, 0, 1, 0], [1, 0, 0, 0]]
-    """
-    L = index.shape[0]
-    onehot = np.zeros((L, N))
-    for l in np.arange(L):
-        onehot[l, index[l]] = 1
-    return onehot
-
-
-def glorot_weight_init(shape, activation_function, random_seed=None):
-    """
-    Layer weight initialization after Xavier Glorot et. al
-    """
-
-    if random_seed is None:
-        random_seed = np.random.RandomState(1234)
-
-    num_inputs, num_outputs = shape
-
-    weight = random_seed.uniform(
-        low=-np.sqrt(6. / (num_inputs + num_outputs)),
-        high=np.sqrt(6. / (num_inputs + num_outputs)),
-        size=(num_outputs, num_inputs)
-    )
-    if activation_function == 'sigmoid':
-        weight *= 4
-    elif activation_function == 'softmax':
-        weight *= 4
-
-    return weight
 
 
 def initialize_parameters(geometry, activation_functions,
@@ -104,11 +71,7 @@ def initialize_parameters(geometry, activation_functions,
     return parameters
 
 
-class MLP():
-    """
-    Basic MLP class methods
-    """
-
+class MLP(Model):
     def __init__(self, **config):
 
         # CHECK THE PARAMETERS ARE VALID
@@ -160,18 +123,6 @@ class MLP():
         if model_folder is not None:
             model_file = "%s/config.yml" % model_folder
             assert os.path.isfile(model_file), "Need to provide %s" % model_file
-
-    def predict(self, input=None):
-        """
-        Predict model outputs given input
-        """
-        raise Exception("Implement this in the child class")
-
-    def update(self, input=None, output=None):
-        """
-        Update model parameters given batch of data
-        """
-        raise Exception("Implement this in the child class")
 
     def load(self, model_folder):
         """

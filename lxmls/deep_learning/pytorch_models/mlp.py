@@ -2,11 +2,12 @@ from __future__ import division
 import numpy as np
 import torch
 from torch.autograd import Variable
-#
-from lxmls.deep_learning.mlp import MLP, index2onehot
+from lxmls.deep_learning.mlp import MLP
+
 
 def cast_float(variable):
     return Variable(torch.from_numpy(variable).float(), requires_grad=True)
+
 
 class PytorchMLP(MLP):
     """
@@ -35,7 +36,7 @@ class PytorchMLP(MLP):
         # Ensure the type matches torch type
         input = cast_float(input)
 
-        # This will store activations at each layer 
+        # This will store activations at each layer
         activation_functions = self.config['activation_functions']
 
         # Input
@@ -74,7 +75,7 @@ class PytorchMLP(MLP):
             torch.from_numpy(output).long(),
             requires_grad=False
         )
-        
+
         # Compute negative log-likelihood loss
         _log_forward = self._log_forward(input)
         loss = torch.nn.NLLLoss()(_log_forward, true_class)
