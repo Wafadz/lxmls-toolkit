@@ -50,10 +50,7 @@ class Data(object):
     """
     Template
     """
-    def __init__(self, **kwargs):
-
-        # Create config from input arguments
-        config = kwargs
+    def __init__(self, **config):
 
         # Data-sets
         self.datasets = {

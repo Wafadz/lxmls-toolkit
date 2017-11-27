@@ -29,8 +29,9 @@ def save_config(config_path, config):
         yaml.dump(config, fid, default_flow_style=False)
 
 
-def initialize_mlp_parameters(geometry, activation_functions,
-                          loaded_parameters=None, random_seed=None):
+def initialize_rnn_parameters(input_size, embedding_size, hidden_size,
+                              output_size, random_seed=None,
+                              loaded_parameters=None):
     """
     Initialize parameters from geometry or existing weights
     """
@@ -40,38 +41,40 @@ def initialize_mlp_parameters(geometry, activation_functions,
         random_seed = np.random.RandomState(1234)
 
     if loaded_parameters is not None:
-        assert len(loaded_parameters) == len(activation_functions), \
+
+        # LOAD MODELS
+
+        assert len(loaded_parameters) == 4, \
             "New geometry not matching model saved"
 
-    parameters = []
-    num_layers = len(activation_functions)
-    for n in range(num_layers):
+        W_e, W_x, W_h, W_y = loaded_parameters
 
-        # Weights
-        if loaded_parameters is not None:
-            weight, bias = loaded_parameters[n]
-            assert weight.shape == (geometry[n+1], geometry[n]), \
-                "New geometry does not match for weigths in layer %d" % n
-            assert bias.shape == (1, geometry[n+1]), \
-                "New geometry does not match for bias in layer %d" % n
+        assert W_e.shape == (embedding_size, input_size), \
+            "Embedding layer ze not matching saved model"
+        assert W_x.shape == (hidden_size, embedding_size), \
+            "Input layer ze not matching saved model"
+        assert W_h.shape == (hidden_size, hidden_size), \
+            "Hidden layer not matching saved model"
+        assert W_y.shape == (output_size, hidden_size), \
+            "Output layer size not matching saved model"
 
-        else:
-            weight = glorot_weight_init(
-                (geometry[n], geometry[n+1]),
-                activation_functions[n],
-                random_seed
-            )
+    else:
 
-            # Bias
-            bias = np.zeros((1, geometry[n+1]))
+        # INITIALIZE
 
-        # Append parameters
-        parameters.append([weight, bias])
+        # Input layer
+        W_e = 0.01*random_seed.uniform(size=(embedding_size, input_size))
+        # Input layer
+        W_x = random_seed.uniform(size=(hidden_size, embedding_size))
+        # Recurrent layer
+        W_h = random_seed.uniform(size=(hidden_size, hidden_size))
+        # Output layer
+        W_y = random_seed.uniform(size=(output_size, hidden_size))
 
-    return parameters
+    return [W_e, W_x, W_h, W_y]
 
 
-class MLP(Model):
+class RNN(Model):
     def __init__(self, **config):
 
         # CHECK THE PARAMETERS ARE VALID
@@ -88,13 +91,15 @@ class MLP(Model):
         else:
             loaded_parameters = None
 
-        # MEMBER VARIABLES
-        self.num_layers = len(config['activation_functions'])
+        # Class variables
         self.config = config
-        self.parameters = initialize_mlp_parameters(
-            config['geometry'],
-            config['activation_functions'],
-            loaded_parameters
+        self.parameters = initialize_rnn_parameters(
+            config['input_size'],
+            config['embedding_size'],
+            config['hidden_size'],
+            config['output_size'],
+            # 'tanh' 'relu' 'logistic'
+            loaded_parameters=loaded_parameters
         )
 
     def sanity_checks(self, config):
@@ -105,20 +110,7 @@ class MLP(Model):
             "Need to specify config, model_folder or both"
 
         if config is not None:
-
-            geometry = config['geometry']
-            activation_functions = config['activation_functions']
-
-            assert len(activation_functions) == len(geometry) - 1, \
-                "geometry and activation_functions sizs do not match"
-
-            assert all(
-                afun == 'sigmoid'
-                for afun in activation_functions[:-1]
-            ), "Hidden layer activations must be sigmoid"
-
-            assert activation_functions[-1] in ['sigmoid', 'softmax'], \
-                "Output layer activations must be sigmoid or softmax"
+            pass
 
         if model_folder is not None:
             model_file = "%s/config.yml" % model_folder
