@@ -30,7 +30,7 @@ def save_config(config_path, config):
 
 
 def initialize_mlp_parameters(geometry, activation_functions,
-                          loaded_parameters=None, random_seed=None):
+                              loaded_parameters=None, random_seed=None):
     """
     Initialize parameters from geometry or existing weights
     """
@@ -69,6 +69,29 @@ def initialize_mlp_parameters(geometry, activation_functions,
         parameters.append([weight, bias])
 
     return parameters
+
+
+def mlp_parameter_handlers(layer_index=None, is_bias=None, row=None,
+                           column=None):
+
+    def get_parameter(parameters):
+        if is_bias:
+            # bias
+            return parameters[layer_index][is_bias][row]
+        else:
+            # weight
+            return parameters[layer_index][is_bias][row, column]
+
+    def set_parameter(parameters, parameter_value):
+        if is_bias:
+            # bias
+            parameters[layer_index][is_bias][row] = parameter_value
+        else:
+            # weight
+            parameters[layer_index][is_bias][row, column] = parameter_value
+        return parameters
+
+    return get_parameter, set_parameter
 
 
 class MLP(Model):

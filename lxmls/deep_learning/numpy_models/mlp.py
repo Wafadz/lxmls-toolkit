@@ -107,7 +107,7 @@ def cross_entropy_loss(input, output, parameters):
     """Cross entropy loss"""
     num_examples = input.shape[0]
     log_probability, _ = log_forward(input, parameters)
-    return log_probability[range(num_examples), output].mean()
+    return -log_probability[range(num_examples), output].mean()
 
 
 class NumpyMLP(MLP):
