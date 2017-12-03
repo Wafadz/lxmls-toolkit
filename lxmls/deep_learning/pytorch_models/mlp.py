@@ -28,6 +28,7 @@ class PytorchMLP(MLP):
             weight, bias = self.parameters[n]
             self.parameters[n] = [cast_float(weight), cast_float(bias)]
 
+    # TODO: Move these outside fo the class as in the numpy case
     def _log_forward(self, input):
         """
         Forward pass

@@ -108,19 +108,17 @@ class NumpyRNN(RNN):
         """
         Predict model outputs given input
         """
-        log_forward = self.log_forward(input)[0]
-        return np.argmax(np.exp(log_forward), axis=0)
+        p_y = np.exp(log_forward(input, self.parameters)[0])
+        return np.argmax(p_y, axis=0)
 
     def update(self, input=None, output=None):
         """
         Update model parameters given batch of data
         """
-        gradients = backpropagation(input, output)
+        gradients = backpropagation(input, output, self.parameters)
         learning_rate = self.config['learning_rate']
         # Update each parameter with SGD rule
         num_parameters = len(self.parameters)
         for m in range(num_parameters):
             # Update weight
-            self.parameters[m][0] -= learning_rate * gradients[m][0]
-            # Update bias
-            self.parameters[m][1] -= learning_rate * gradients[m][1]
+            self.parameters[m] -= learning_rate * gradients[m]
