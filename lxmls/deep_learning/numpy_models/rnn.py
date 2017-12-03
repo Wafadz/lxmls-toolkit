@@ -93,7 +93,7 @@ def cross_entropy_loss(input, output, parameters):
     """Cross entropy loss"""
     nr_steps = input.shape[0]
     log_probability = log_forward(input, parameters)[0]
-    return -log_probability[range(nr_steps), output].mean()
+    return -log_probability[output, range(nr_steps)].mean()
 
 
 class NumpyRNN(RNN):
