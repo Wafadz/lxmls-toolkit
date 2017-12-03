@@ -43,10 +43,11 @@ def glorot_weight_init(shape, activation_function, random_seed=None):
     return weight
 
 #
-# Templates for Model and Data
+# Model and Data
 #
 
-class Data(object):
+
+class AmazonData(object):
     """
     Template
     """

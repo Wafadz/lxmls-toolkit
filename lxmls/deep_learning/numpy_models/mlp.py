@@ -1,4 +1,3 @@
-from __future__ import division
 import numpy as np
 from scipy.misc import logsumexp
 from lxmls.deep_learning.mlp import MLP

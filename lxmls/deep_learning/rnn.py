@@ -6,7 +6,7 @@ import os
 import cPickle
 import yaml
 import numpy as np
-from lxmls.deep_learning.utils import Model, glorot_weight_init
+from lxmls.deep_learning.utils import Model
 
 
 def load_parameters(parameter_file):
@@ -74,6 +74,20 @@ def initialize_rnn_parameters(input_size, embedding_size, hidden_size,
     return [W_e, W_x, W_h, W_y]
 
 
+def rnn_parameter_handlers(layer_index=None, row=None, column=None):
+
+    def get_parameter(parameters):
+        # weight
+        return parameters[layer_index][row, column]
+
+    def set_parameter(parameters, parameter_value):
+        # weight
+        parameters[layer_index][row, column] = parameter_value
+        return parameters
+
+    return get_parameter, set_parameter
+
+
 class RNN(Model):
     def __init__(self, **config):
 
@@ -98,7 +112,6 @@ class RNN(Model):
             config['embedding_size'],
             config['hidden_size'],
             config['output_size'],
-            # 'tanh' 'relu' 'logistic'
             loaded_parameters=loaded_parameters
         )
 
