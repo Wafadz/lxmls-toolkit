@@ -13,73 +13,6 @@ def cast_int(variable):
     return Variable(torch.from_numpy(variable).long(), requires_grad=True)
 
 
-def _log_forward(input, parameters):
-    """
-    Forward pass
-    """
-
-    # Ensure the type matches torch type
-    input = Variable(torch.from_numpy(input).long())
-
-    # Get parameters and sizes
-    W_e, W_x, W_h, W_y = parameters
-    embedding_size, vocabulary_size = W_e.data.shape
-    hidden_size = W_h.data.shape[0]
-    nr_steps = input.data.shape[0]
-
-    # Define some operations a priori
-    # Initialize Embedding layer
-    embedding_layer = torch.nn.Embedding(vocabulary_size, embedding_size)
-    embedding_layer.weight.data = torch.t(W_e).data
-    # Log softmax
-    logsoftmax = torch.nn.LogSoftmax()
-
-    # FORWARD PASS COMPUTATION GRAPH
-
-    # Word Embeddings
-    z_e = torch.t(embedding_layer(input))
-
-    # Recurrent layer
-    h = Variable(torch.FloatTensor(hidden_size, nr_steps + 1).zero_())
-    for t in range(nr_steps):
-
-        # Linear
-        z_t = torch.matmul(z_e[:, t], torch.t(W_x)) + \
-            torch.matmul(h[:, t], torch.t(W_h))
-
-        # Non-linear (sigmoid)
-        h[:, t+1] = torch.sigmoid(z_t)
-
-    # Output layer
-    y = torch.matmul(W_y, h[:, 1:])
-
-    # Log-Softmax
-    log_p_y = torch.t(logsoftmax(torch.t(y)))
-
-    return log_p_y
-
-
-def backpropagation(input, output, parameters):
-    """
-    Computes the gradients of the network with respect to cross entropy
-    error cost
-    """
-    output = Variable(
-        torch.from_numpy(output).long(),
-        requires_grad=False
-    )
-
-    # Compute negative log-likelihood loss
-    loss = torch.nn.NLLLoss()(_log_forward(input), output)
-    # Use autograd to compute the backward pass.
-    loss.backward()
-
-    gradient_parameters = []
-    for parameter in parameters:
-        gradient_parameters.append(parameters.grad.data)
-    return gradient_parameters
-
-
 class PytorchRNN(RNN):
     """
     Basic RNN with forward-pass and gradient computation in Pytorch
@@ -93,10 +26,24 @@ class PytorchRNN(RNN):
         # self.parameters
         RNN.__init__(self, **config)
 
-        # Need to cast all weights
-        for n in range(len(self.parameters)):
+        # First parameters are the embeddings
+        # instantiate the embedding layer first
+        embedding_size, vocabulary_size = self.parameters[0].shape
+        self.embedding_layer = torch.nn.Embedding(
+            vocabulary_size,
+            embedding_size
+        )
+        # Set its value to the stored weight
+        self.embedding_layer.weight.data = \
+            torch.from_numpy(self.parameters[0].T).float()
+        # Store the pytorch variable in our parameter list
+        self.parameters[0] = self.embedding_layer.weight
+
+        # Need to cast  rest of weights
+        num_parameters = len(self.parameters)
+        for index in range(1, num_parameters):
             # Get weigths and bias of the layer (even and odd positions)
-            self.parameters[n] = cast_float(self.parameters[n])
+            self.parameters[index] = cast_float(self.parameters[index])
 
     def predict(self, input=None):
         """
@@ -109,17 +56,86 @@ class PytorchRNN(RNN):
         """
         Update model parameters given batch of data
         """
-        gradients = self.gradients(input, output)
+        gradients = self.backpropagation(input, output)
         learning_rate = self.config['learning_rate']
         # Update each parameter with SGD rule
-        for m in np.arange(self.num_layers):
+        num_parameters = len(self.parameters)
+        for m in np.arange(num_parameters):
             # Update weight
-            self.parameters[m][0].data -= learning_rate * gradients[m][0]
-            # Update bias
-            self.parameters[m][1].data -= learning_rate * gradients[m][1]
+            self.parameters[m].data -= learning_rate * gradients[m]
 
-        # Zero gradients
-        for n in np.arange(self.num_layers):
-            weight, bias = self.parameters[n]
-            weight.grad.data.zero_()
-            bias.grad.data.zero_()
+    def _log_forward(self, input):
+        """
+        Forward pass
+        """
+
+        # Ensure the type matches torch type
+        input = Variable(torch.from_numpy(input).long())
+
+        # Get parameters and sizes
+        W_e, W_x, W_h, W_y = self.parameters
+        embedding_size, vocabulary_size = W_e.shape
+        hidden_size = W_h.shape[0]
+        nr_steps = input.shape[0]
+
+        # Define some operations a priori
+        # Initialize Embedding layer
+        # Log softmax
+        logsoftmax = torch.nn.LogSoftmax(dim=0)
+
+        # FORWARD PASS COMPUTATION GRAPH
+
+        # Word Embeddings
+        z_e = torch.t(self.embedding_layer(input))
+
+        # Recurrent layer
+        h = Variable(torch.FloatTensor(hidden_size, nr_steps + 1).zero_())
+        for t in range(nr_steps):
+
+            # Linear
+            z_t = torch.matmul(
+                z_e[:, t].clone(),
+                torch.t(W_x)
+            ) + torch.matmul(
+                h[:, t].clone(),
+                torch.t(W_h)
+            )
+
+            # Non-linear (sigmoid)
+            h[:, t+1] = torch.sigmoid(z_t)
+
+        # Output layer
+        y = torch.matmul(W_y, h[:, 1:])
+
+        # Log-Softmax
+        log_p_y = logsoftmax(y)
+
+        return log_p_y
+
+    def backpropagation(self, input, output):
+        """
+        Computes the gradients of the network with respect to cross entropy
+        error cost
+        """
+        output = Variable(
+            torch.from_numpy(output).long(),
+            requires_grad=False
+        )
+
+        loss_function = torch.nn.NLLLoss()
+
+        #for parameter in parameters:
+        #    parameter.grad.data.zero_()
+
+        # Compute negative log-likelihood loss
+        log_p_y = self._log_forward(input)
+        cost = loss_function(torch.t(log_p_y), output)
+        # Use autograd to compute the backward pass.
+        cost.backward()
+
+        num_parameters = len(self.parameters)
+        gradient_parameters = [torch.t(self.parameters[0].grad.data[0])]
+        for index in range(1, num_parameters):
+            gradient_parameters.append(self.parameters[index].grad.data)
+
+        return gradient_parameters
