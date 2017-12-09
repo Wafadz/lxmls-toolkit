@@ -28,14 +28,13 @@ class PytorchRNN(RNN):
 
         # First parameters are the embeddings
         # instantiate the embedding layer first
-        embedding_size, vocabulary_size = self.parameters[0].shape
         self.embedding_layer = torch.nn.Embedding(
-            vocabulary_size,
-            embedding_size
+            config['vocabulary_size'],
+            config['embedding_size']
         )
         # Set its value to the stored weight
         self.embedding_layer.weight.data = \
-            torch.from_numpy(self.parameters[0].T).float()
+            torch.from_numpy(self.parameters[0]).float()
         # Store the pytorch variable in our parameter list
         self.parameters[0] = self.embedding_layer.weight
 
@@ -62,6 +61,7 @@ class PytorchRNN(RNN):
         num_parameters = len(self.parameters)
         for m in np.arange(num_parameters):
             # Update weight
+            import ipdb;ipdb.set_trace(context=30)
             self.parameters[m].data -= learning_rate * gradients[m]
 
     def _log_forward(self, input):
@@ -124,8 +124,10 @@ class PytorchRNN(RNN):
 
         loss_function = torch.nn.NLLLoss()
 
-        #for parameter in parameters:
-        #    parameter.grad.data.zero_()
+        # Zero gradients
+        for parameter in self.parameters:
+            if parameter.grad is not None:
+                parameter.grad.data.zero_()
 
         # Compute negative log-likelihood loss
         log_p_y = self._log_forward(input)
@@ -134,7 +136,7 @@ class PytorchRNN(RNN):
         cost.backward()
 
         num_parameters = len(self.parameters)
-        gradient_parameters = [torch.t(self.parameters[0].grad.data[0])]
+        gradient_parameters = [torch.t(self.parameters[0].grad.data)]
         for index in range(1, num_parameters):
             gradient_parameters.append(self.parameters[index].grad.data)
 

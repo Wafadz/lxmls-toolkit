@@ -12,7 +12,7 @@ def log_forward(input, parameters):
     nr_steps = input.shape[0]
 
     # Embedding layer
-    z_e = W_e[:, input]
+    z_e = W_e[input, :].T
 
     # Recurrent layer
     h = np.zeros((hidden_size, nr_steps+1))
@@ -79,7 +79,7 @@ def backpropagation(input, output, parameters):
         gradient_W_y += np.outer(error[:, t], h[:, t+1])
         gradient_W_h += np.outer(error_raw, h[:, t])
         gradient_W_x += np.outer(error_raw, z_e[:, t])
-        gradient_W_e[:, x[t]] += W_x.T.dot(error_raw)
+        gradient_W_e[x[t], :] += W_x.T.dot(error_raw)
 
     # Normalize over sentence length
     gradient_parameters = [
