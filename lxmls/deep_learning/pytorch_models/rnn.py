@@ -29,13 +29,11 @@ class PytorchRNN(RNN):
         # First parameters are the embeddings
         # instantiate the embedding layer first
         self.embedding_layer = torch.nn.Embedding(
-            config['vocabulary_size'],
+            config['input_size'],
             config['embedding_size']
         )
         # Set its value to the stored weight
-        self.embedding_layer.weight.data = \
-            torch.from_numpy(self.parameters[0]).float()
-        # Store the pytorch variable in our parameter list
+        self.embedding_layer.weight.data = cast_float(self.parameters[0]).data
         self.parameters[0] = self.embedding_layer.weight
 
         # Need to cast  rest of weights
@@ -49,7 +47,7 @@ class PytorchRNN(RNN):
         Predict model outputs given input
         """
         p_y = np.exp(self._log_forward(input).data.numpy())
-        return np.argmax(p_y, axis=1)
+        return np.argmax(p_y, axis=0)
 
     def update(self, input=None, output=None):
         """
@@ -61,7 +59,6 @@ class PytorchRNN(RNN):
         num_parameters = len(self.parameters)
         for m in np.arange(num_parameters):
             # Update weight
-            import ipdb;ipdb.set_trace(context=30)
             self.parameters[m].data -= learning_rate * gradients[m]
 
     def _log_forward(self, input):
@@ -93,13 +90,8 @@ class PytorchRNN(RNN):
         for t in range(nr_steps):
 
             # Linear
-            z_t = torch.matmul(
-                z_e[:, t].clone(),
-                torch.t(W_x)
-            ) + torch.matmul(
-                h[:, t].clone(),
-                torch.t(W_h)
-            )
+            z_t = torch.matmul(z_e[:, t].clone(), torch.t(W_x)) + \
+                torch.matmul(h[:, t].clone(), torch.t(W_h))
 
             # Non-linear (sigmoid)
             h[:, t+1] = torch.sigmoid(z_t)
@@ -136,7 +128,7 @@ class PytorchRNN(RNN):
         cost.backward()
 
         num_parameters = len(self.parameters)
-        gradient_parameters = [torch.t(self.parameters[0].grad.data)]
+        gradient_parameters = [self.parameters[0].grad.data]
         for index in range(1, num_parameters):
             gradient_parameters.append(self.parameters[index].grad.data)
 
