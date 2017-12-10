@@ -1,5 +1,4 @@
 import numpy as np
-import scipy as scipy
 import lxmls.classifiers.linear_classifier as lc
 from lxmls.distributions.gaussian import *
 

@@ -1,7 +1,5 @@
 import numpy as np
-import scipy as scipy
 import lxmls.classifiers.linear_classifier as lc
-import sys
 from lxmls.distributions.gaussian import *
 
 
@@ -42,17 +40,23 @@ class MultinomialNaiveBayes(lc.LinearClassifier):
         # ----------
         # Solution to Exercise 1.1
         for i in xrange(n_classes):
-            docs_in_class, _ = np.nonzero(y == classes[i])  # docs_in_class = indices of documents in class i
-            prior[i] = 1.0 * len(docs_in_class) / n_docs  # prior = fraction of documents with this class
+            # docs_in_class = indices of documents in class i
+            docs_in_class, _ = np.nonzero(y == classes[i])
+            # prior = fraction of documents with this class
+            prior[i] = 1.0 * len(docs_in_class) / n_docs
 
-            # word_count_in_class = count of word occurrences in documents of class i
+            # word_count_in_class = count of word occurrences in documents of
+            # class i
             word_count_in_class = x[docs_in_class, :].sum(0)
-            total_words_in_class = word_count_in_class.sum()  # total_words_in_class = total number of words in documents of class i
+            # total_words_in_class = total number of words in documents of class
+            # i
+            total_words_in_class = word_count_in_class.sum()
             if not self.smooth:
                 # likelihood = count of occurrences of a word in a class
                 likelihood[:, i] = word_count_in_class / total_words_in_class
             else:
-                likelihood[:, i] = (word_count_in_class+self.smooth_param) / (total_words_in_class + self.smooth_param*n_words)
+                likelihood[:, i] = (word_count_in_class + self.smooth_param) / \
+                    (total_words_in_class + self.smooth_param*n_words)
         # End solution to Exercise 1.1
         # ----------
 
