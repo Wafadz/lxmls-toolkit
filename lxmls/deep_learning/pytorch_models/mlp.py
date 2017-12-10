@@ -28,6 +28,9 @@ class PytorchMLP(MLP):
             weight, bias = self.parameters[n]
             self.parameters[n] = [cast_float(weight), cast_float(bias)]
 
+        # Initialize some functions that we will need
+        self.logsoftmax = torch.nn.LogSoftmax(dim=1)
+
     # TODO: Move these outside fo the class as in the numpy case
     def _log_forward(self, input):
         """
@@ -37,15 +40,12 @@ class PytorchMLP(MLP):
         # Ensure the type matches torch type
         input = cast_float(input)
 
-        # This will store activations at each layer
-        activation_functions = self.config['activation_functions']
-
         # Input
         tilde_z = input
 
         # ----------
         # Solution to Exercise 6.4
-        for n in range(self.num_layers):
+        for n in range(self.num_layers - 1):
 
             # Get weigths and bias of the layer (even and odd positions)
             weight, bias = self.parameters[n]
@@ -54,13 +54,16 @@ class PytorchMLP(MLP):
             z = torch.matmul(tilde_z, torch.t(weight)) + bias
 
             # Non-linear transformation
-            if activation_functions[n] == "sigmoid":
-                tilde_z = torch.sigmoid(z)
+            tilde_z = torch.sigmoid(z)
 
-            elif activation_functions[n] == "softmax":
-                # Softmax is computed in log-domain to prevent
-                # underflow/overflow
-                log_tilde_z = torch.nn.LogSoftmax()(z)
+        # Get weigths and bias of the layer (even and odd positions)
+        weight, bias = self.parameters[self.num_layers - 1]
+
+        # Linear transformation
+        z = torch.matmul(tilde_z, torch.t(weight)) + bias
+
+        # Softmax is computed in log-domain to prevent underflow/overflow
+        log_tilde_z = self.logsoftmax(z)
 
         # End of solution to Exercise 6.4
         # ----------
