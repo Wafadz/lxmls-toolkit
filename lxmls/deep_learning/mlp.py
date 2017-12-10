@@ -29,22 +29,25 @@ def save_config(config_path, config):
         yaml.dump(config, fid, default_flow_style=False)
 
 
-def initialize_mlp_parameters(geometry, activation_functions,
-                              loaded_parameters=None, random_seed=None):
+def initialize_mlp_parameters(geometry, loaded_parameters=None, 
+                              random_seed=None):
     """
     Initialize parameters from geometry or existing weights
     """
+
+    num_layers = len(geometry) - 1
+    num_hidden_layers = num_layers - 1
+    activation_functions = ['sigmoid']*num_hidden_layers + ['softmax']
 
     # Initialize random seed if not given
     if random_seed is None:
         random_seed = np.random.RandomState(1234)
 
     if loaded_parameters is not None:
-        assert len(loaded_parameters) == len(activation_functions), \
+        assert len(loaded_parameters) == num_layers, \
             "New geometry not matching model saved"
 
     parameters = []
-    num_layers = len(activation_functions)
     for n in range(num_layers):
 
         # Weights
@@ -112,11 +115,10 @@ class MLP(Model):
             loaded_parameters = None
 
         # MEMBER VARIABLES
-        self.num_layers = len(config['activation_functions'])
+        self.num_layers = len(config['geometry']) - 1
         self.config = config
         self.parameters = initialize_mlp_parameters(
             config['geometry'],
-            config['activation_functions'],
             loaded_parameters
         )
 
@@ -126,22 +128,6 @@ class MLP(Model):
 
         assert bool(config is None) or bool(model_folder is None), \
             "Need to specify config, model_folder or both"
-
-        if config is not None:
-
-            geometry = config['geometry']
-            activation_functions = config['activation_functions']
-
-            assert len(activation_functions) == len(geometry) - 1, \
-                "geometry and activation_functions sizs do not match"
-
-            assert all(
-                afun == 'sigmoid'
-                for afun in activation_functions[:-1]
-            ), "Hidden layer activations must be sigmoid"
-
-            assert activation_functions[-1] in ['sigmoid', 'softmax'], \
-                "Output layer activations must be sigmoid or softmax"
 
         if model_folder is not None:
             model_file = "%s/config.yml" % model_folder
