@@ -32,9 +32,17 @@ class PytorchRNN(RNN):
             config['input_size'],
             config['embedding_size']
         )
+
+
         # Set its value to the stored weight
         self.embedding_layer.weight.data = cast_float(self.parameters[0]).data
         self.parameters[0] = self.embedding_layer.weight
+
+        # Log softmax
+        self.logsoftmax = torch.nn.LogSoftmax(dim=1)
+
+        # Negative-log likelihood
+        self.loss = torch.nn.NLLLoss()
 
         # Need to cast  rest of weights
         num_parameters = len(self.parameters)
@@ -47,7 +55,7 @@ class PytorchRNN(RNN):
         Predict model outputs given input
         """
         p_y = np.exp(self._log_forward(input).data.numpy())
-        return np.argmax(p_y, axis=0)
+        return np.argmax(p_y, axis=1)
 
     def update(self, input=None, output=None):
         """
@@ -75,32 +83,27 @@ class PytorchRNN(RNN):
         hidden_size = W_h.shape[0]
         nr_steps = input.shape[0]
 
-        # Define some operations a priori
-        # Initialize Embedding layer
-        # Log softmax
-        logsoftmax = torch.nn.LogSoftmax(dim=0)
-
         # FORWARD PASS COMPUTATION GRAPH
 
         # Word Embeddings
-        z_e = torch.t(self.embedding_layer(input))
+        z_e = self.embedding_layer(input)
 
         # Recurrent layer
-        h = Variable(torch.FloatTensor(hidden_size, nr_steps + 1).zero_())
+        h = Variable(torch.FloatTensor(nr_steps + 1, hidden_size).zero_())
         for t in range(nr_steps):
 
             # Linear
-            z_t = torch.matmul(z_e[:, t].clone(), torch.t(W_x)) + \
-                torch.matmul(h[:, t].clone(), torch.t(W_h))
+            z_t = torch.matmul(z_e[t, :].clone(), torch.t(W_x)) + \
+                torch.matmul(h[t, :].clone(), torch.t(W_h))
 
             # Non-linear (sigmoid)
-            h[:, t+1] = torch.sigmoid(z_t)
+            h[t+1, :] = torch.sigmoid(z_t)
 
         # Output layer
-        y = torch.matmul(W_y, h[:, 1:])
+        y = torch.matmul(h[1:, :], torch.t(W_y))
 
         # Log-Softmax
-        log_p_y = logsoftmax(y)
+        log_p_y = self.logsoftmax(y)
 
         return log_p_y
 
@@ -114,8 +117,6 @@ class PytorchRNN(RNN):
             requires_grad=False
         )
 
-        loss_function = torch.nn.NLLLoss()
-
         # Zero gradients
         for parameter in self.parameters:
             if parameter.grad is not None:
@@ -123,13 +124,14 @@ class PytorchRNN(RNN):
 
         # Compute negative log-likelihood loss
         log_p_y = self._log_forward(input)
-        cost = loss_function(torch.t(log_p_y), output)
+        cost = self.loss(log_p_y, output)
         # Use autograd to compute the backward pass.
         cost.backward()
 
         num_parameters = len(self.parameters)
-        gradient_parameters = [self.parameters[0].grad.data]
-        for index in range(1, num_parameters):
+        # Update parameters
+        gradient_parameters = []
+        for index in range(0, num_parameters):
             gradient_parameters.append(self.parameters[index].grad.data)
 
         return gradient_parameters

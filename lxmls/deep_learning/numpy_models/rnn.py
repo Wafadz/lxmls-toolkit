@@ -17,7 +17,7 @@ class NumpyRNN(RNN):
         Predict model outputs given input
         """
         p_y = np.exp(self.log_forward(input)[0])
-        return np.argmax(p_y, axis=0)
+        return np.argmax(p_y, axis=1)
 
     def update(self, input=None, output=None):
         """
@@ -39,23 +39,23 @@ class NumpyRNN(RNN):
         nr_steps = input.shape[0]
     
         # Embedding layer
-        z_e = W_e[input, :].T
+        z_e = W_e[input, :]
     
         # Recurrent layer
-        h = np.zeros((hidden_size, nr_steps+1))
+        h = np.zeros((nr_steps + 1, hidden_size))
         for t in range(nr_steps):
     
             # Linear
-            z_t = W_x.dot(z_e[:, t]) + W_h.dot(h[:, t])
+            z_t = W_x.dot(z_e[t, :]) + W_h.dot(h[t, :])
     
             # Non-linear
-            h[:, t+1] = 1.0 / (1 + np.exp(-z_t))
+            h[t+1, :] = 1.0 / (1 + np.exp(-z_t))
     
         # Output layer
-        y = W_y.dot(h[:, 1:])
+        y = h[1:, :].dot(W_y.T)
     
         # Softmax
-        log_p_y = y - logsumexp(y, axis=0)
+        log_p_y = y - logsumexp(y, axis=1)[:, None]
     
         return log_p_y, y, h, z_e, input
     
@@ -86,25 +86,25 @@ class NumpyRNN(RNN):
     
         # Gradient of the cost with respect to the last linear model
         I = index2onehot(output, W_y.shape[0])
-        error = (p_y - I.T) / nr_steps
+        error = (p_y - I) / nr_steps
     
         # backward pass, with gradient computation
-        error_h_next = np.zeros_like(h[:, 0])
+        error_h_next = np.zeros_like(h[0, :])
         for t in reversed(range(nr_steps)):
     
             # Output linear
-            error_h = np.dot(W_y.T, error[:, t]) + error_h_next
+            error_h = np.dot(W_y.T, error[t, :]) + error_h_next
     
             # Non-linear
-            error_raw = h[:, t+1] * (1. - h[:, t+1]) * error_h
+            error_raw = h[t+1, :] * (1. - h[t+1, :]) * error_h
     
             # Hidden-linear
             error_h_next = np.dot(W_h.T, error_raw)
     
             # Weight gradients
-            gradient_W_y += np.outer(error[:, t], h[:, t+1])
-            gradient_W_h += np.outer(error_raw, h[:, t])
-            gradient_W_x += np.outer(error_raw, z_e[:, t])
+            gradient_W_y += np.outer(error[t, :], h[t+1, :])
+            gradient_W_h += np.outer(error_raw, h[t, :])
+            gradient_W_x += np.outer(error_raw, z_e[t, :])
             gradient_W_e[x[t], :] += W_x.T.dot(error_raw)
     
         # Normalize over sentence length
@@ -118,4 +118,4 @@ class NumpyRNN(RNN):
         """Cross entropy loss"""
         nr_steps = input.shape[0]
         log_probability = self.log_forward(input)[0]
-        return -log_probability[output, range(nr_steps)].mean()
+        return -log_probability[range(nr_steps), output].mean()
