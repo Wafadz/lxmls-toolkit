@@ -31,20 +31,10 @@ package_data = {
 }
 
 setup(
-<<<<<<< HEAD
     name='LxMLS Toolkit',
     version='0.0.1',
     author='LxMLS team',
     description='Machine Learning and Natural Language toolkit',
-=======
-    name="LXMLS_Toolkit",
-    version='0.0.1',
-    author="LXMLS-team",
-    description=("Machine Learning and Natural Language toolkit"),
-    license="MIT",
-    keywords="machine learning",
-    url="https://github.com/LxMLS/lxmls-toolkit",
->>>>>>> feature/add-pytorch-rnn-day
     long_description=read('README.md'),
     license='MIT',
     keywords='machine learning',
